@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronDown, Leaf, MapPin, RefreshCw } from 'lucide-react'
 import ThailandMap from './components/ThailandMap'
 import InsightRail from './components/InsightRail'
-import { fetchClimate, fetchPrice, fetchWeather, fallbacks } from './api'
-import { anchorCoordinates, climatePeriods, crops, provinceNames } from './data'
+import { clearApiCache, fetchClimate, fetchPrice, fetchProvincePrices, fetchWeather, fallbacks, unavailablePrice } from './api'
+import { anchorCoordinates, climatePeriods, cropGroups, crops, provinceNames } from './data'
 
-const initialLocation = { name: 'Kanchanaburi', label: 'กาญจนบุรี', ...anchorCoordinates.Kanchanaburi }
+const initialLocation = { name: 'Trat', label: 'ตราด', ...anchorCoordinates.Trat }
 
 function approximateCoordinate(target) {
   const box = target?.getBBox()
@@ -17,42 +17,69 @@ function approximateCoordinate(target) {
 
 function App() {
   const [selected, setSelected] = useState(initialLocation)
-  const [cropId, setCropId] = useState('cassava')
+  const [cropId, setCropId] = useState('fruit-durian')
   const [climatePeriodId, setClimatePeriodId] = useState(climatePeriods[0].id)
   const [price, setPrice] = useState(fallbacks.price)
+  const [provincePrices, setProvincePrices] = useState(fallbacks.provincePrices)
   const [weather, setWeather] = useState(fallbacks.weather)
   const [climate, setClimate] = useState(fallbacks.climate)
-  const [loading, setLoading] = useState(true)
-  const [staleSources, setStaleSources] = useState([])
+  const [loading, setLoading] = useState({ price: true, map: false, weather: true, climate: true })
+  const [sourceFailures, setSourceFailures] = useState({})
   const [updatedAt, setUpdatedAt] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const currentCrop = useMemo(() => crops.find((crop) => crop.id === cropId) ?? crops[0], [cropId])
   const currentPeriod = useMemo(() => climatePeriods.find((period) => period.id === climatePeriodId) ?? climatePeriods[0], [climatePeriodId])
 
-  const loadData = useCallback(async (signal) => {
-    setLoading(true)
-    const stale = []
-    const results = await Promise.allSettled([
-      fetchPrice(currentCrop.resourceId, signal),
-      fetchWeather(selected.lat, selected.lon, signal),
-      fetchClimate(selected.lat, selected.lon, currentPeriod.start, currentPeriod.end, signal),
-    ])
-    if (results[0].status === 'fulfilled') setPrice(results[0].value); else stale.push('data.go.th')
-    if (results[1].status === 'fulfilled') setWeather(results[1].value); else stale.push('Open‑Meteo')
-    if (results[2].status === 'fulfilled') setClimate(results[2].value); else stale.push('NASA POWER')
-    if (!signal.aborted) {
-      setStaleSources(stale)
-      setUpdatedAt(new Date())
-      setLoading(false)
-    }
-  }, [currentCrop.resourceId, currentPeriod.end, currentPeriod.start, selected.lat, selected.lon])
+  const markLoading = useCallback((key, value) => setLoading((state) => ({ ...state, [key]: value })), [])
+  const markSource = useCallback((key, failed) => setSourceFailures((state) => ({ ...state, [key]: failed })), [])
 
   useEffect(() => {
-    const controller = new AbortController()
-    loadData(controller.signal)
-    return () => controller.abort()
-  }, [loadData, refreshKey])
+    let active = true
+    const source = currentCrop.source === 'oae-fruit' ? 'สศก.' : currentCrop.source === 'dgtfarm' ? 'DGTFarm' : 'data.go.th'
+    markLoading('price', true)
+    setPrice(unavailablePrice(currentCrop))
+    fetchPrice(currentCrop)
+      .then((value) => { if (active) { setPrice(value); markSource(source, false) } })
+      .catch(() => { if (active) markSource(source, true) })
+      .finally(() => { if (active) { markLoading('price', false); setUpdatedAt(new Date()) } })
+    return () => { active = false }
+  }, [currentCrop, markLoading, markSource, refreshKey])
+
+  useEffect(() => {
+    let active = true
+    setProvincePrices(fallbacks.provincePrices)
+    if (currentCrop.category !== 'fruit') {
+      markLoading('map', false)
+      return () => { active = false }
+    }
+    markLoading('map', true)
+    fetchProvincePrices(currentCrop)
+      .then((value) => { if (active) { setProvincePrices(value); markSource('DGTFarm', false) } })
+      .catch(() => { if (active) markSource('DGTFarm', true) })
+      .finally(() => { if (active) markLoading('map', false) })
+    return () => { active = false }
+  }, [currentCrop, markLoading, markSource, refreshKey])
+
+  useEffect(() => {
+    let active = true
+    markLoading('weather', true)
+    fetchWeather(selected.lat, selected.lon)
+      .then((value) => { if (active) { setWeather(value); markSource('Open‑Meteo', false) } })
+      .catch(() => { if (active) markSource('Open‑Meteo', true) })
+      .finally(() => { if (active) { markLoading('weather', false); setUpdatedAt(new Date()) } })
+    return () => { active = false }
+  }, [markLoading, markSource, refreshKey, selected.lat, selected.lon])
+
+  useEffect(() => {
+    let active = true
+    markLoading('climate', true)
+    fetchClimate(selected.lat, selected.lon, currentPeriod.start, currentPeriod.end)
+      .then((value) => { if (active) { setClimate(value); markSource('NASA POWER', false) } })
+      .catch(() => { if (active) markSource('NASA POWER', true) })
+      .finally(() => { if (active) markLoading('climate', false) })
+    return () => { active = false }
+  }, [currentPeriod.end, currentPeriod.start, markLoading, markSource, refreshKey, selected.lat, selected.lon])
 
   const selectProvince = (location, target) => {
     const coords = anchorCoordinates[location.name] ?? approximateCoordinate(target)
@@ -65,27 +92,39 @@ function App() {
     selectProvince(location, target)
   }
 
+  const refresh = () => {
+    clearApiCache()
+    setRefreshKey((value) => value + 1)
+  }
+
+  const currentPriceSource = currentCrop.source === 'oae-fruit' ? 'สศก.' : currentCrop.source === 'dgtfarm' ? 'DGTFarm' : 'data.go.th'
+  const activeSources = new Set(['Open‑Meteo', 'NASA POWER', currentPriceSource, ...(currentCrop.category === 'fruit' ? ['DGTFarm'] : [])])
+  const staleSources = Object.entries(sourceFailures).filter(([source, failed]) => failed && activeSources.has(source)).map(([source]) => source)
+  const isLoading = Object.values(loading).some(Boolean)
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <a className="brand" href="/" aria-label="เกษตรไทย Data Map"><span className="brand-mark"><Leaf /></span><span>เกษตรไทย <b>Data Map</b></span></a>
-        <div className="update-area"><span>อัปเดตล่าสุด<br/><b>{updatedAt ? updatedAt.toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : 'กำลังเชื่อมต่อ'}</b></span><button className="refresh-button" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><RefreshCw size={17} className={loading ? 'spinning' : ''}/>อัปเดตข้อมูล</button></div>
+        <div className="update-area"><span>อัปเดตล่าสุด<br/><b>{updatedAt ? updatedAt.toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : 'กำลังเชื่อมต่อ'}</b></span><button className="refresh-button" onClick={refresh} disabled={isLoading}><RefreshCw size={17} className={isLoading ? 'spinning' : ''}/>อัปเดตข้อมูล</button></div>
       </header>
 
       <div className="controls" id="top">
-        <label><span><Leaf size={15}/>สินค้าเกษตร</span><select value={cropId} onChange={(event) => setCropId(event.target.value)}>{crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.label}</option>)}</select><ChevronDown /></label>
+        <label><span><Leaf size={15}/>สินค้าเกษตร · ผลไม้ 27 ชนิด</span><select value={cropId} onChange={(event) => setCropId(event.target.value)}>{cropGroups.map((group) => <optgroup key={group.label} label={group.label}>{group.items.map((crop) => <option key={crop.id} value={crop.id}>{crop.label}</option>)}</optgroup>)}</select><ChevronDown /></label>
         <label><span><MapPin size={15}/>จังหวัด</span><select value={selected.name} onChange={(event) => selectFromDropdown(event.target.value)}>{Object.entries(provinceNames).sort((a, b) => a[1].localeCompare(b[1], 'th')).map(([name, label]) => <option key={name} value={name}>{label}</option>)}</select><ChevronDown /></label>
         <label className="period-control"><span><CalendarDays size={15}/>ช่วงข้อมูลภูมิอากาศ</span><select value={climatePeriodId} onChange={(event) => setClimatePeriodId(event.target.value)}>{climatePeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select><ChevronDown /></label>
       </div>
 
       <main className="dashboard">
-        <ThailandMap selected={selected} onSelect={selectProvince} priceLabel={`${Number(price.current?.value ?? 0).toFixed(2)} ${price.current?.unit ?? 'บาท/กก.'}`} />
+        <ThailandMap selected={selected} onSelect={selectProvince} product={currentCrop} provincePrices={provincePrices} priceLabel={`${Number.isFinite(Number(price.current?.value)) ? Number(price.current.value).toFixed(2) : '—'} ${price.current?.unit ?? ''}`} loading={loading.map} />
         <InsightRail selected={selected} price={price} weather={weather} climate={climate} climatePeriod={currentPeriod} loading={loading} staleSources={staleSources}/>
       </main>
 
       <footer className="source-footer">
         <strong>แหล่งข้อมูล</strong>
-        <a href="https://data.go.th" target="_blank" rel="noreferrer"><i className={staleSources.includes('data.go.th') ? 'warn' : ''}/>data.go.th <span>ราคาเกษตรระดับประเทศ</span></a>
+        <a href="https://catalog.oae.go.th/dataset/tropical-fruits" target="_blank" rel="noreferrer"><i className={staleSources.includes('สศก.') ? 'warn' : ''}/>สศก. <span>ราคาฟาร์มผลไม้ 7 ชนิด</span></a>
+        <a href="https://catalog-acfs.data.go.th/dataset/dgtfarm" target="_blank" rel="noreferrer"><i className={staleSources.includes('DGTFarm') ? 'warn' : ''}/>DGTFarm <span>ราคาเสนอขายรายจังหวัด</span></a>
+        <a href="https://data.go.th" target="_blank" rel="noreferrer"><i className={staleSources.includes('data.go.th') ? 'warn' : ''}/>data.go.th <span>ราคาสินค้าอื่นระดับประเทศ</span></a>
         <a href="https://open-meteo.com" target="_blank" rel="noreferrer"><i className={staleSources.includes('Open‑Meteo') ? 'warn' : ''}/>Open‑Meteo <span>อากาศและความชื้นดิน</span></a>
         <a href="https://power.larc.nasa.gov" target="_blank" rel="noreferrer"><i className={staleSources.includes('NASA POWER') ? 'warn' : ''}/>NASA POWER <span>ภูมิอากาศย้อนหลัง</span></a>
       </footer>

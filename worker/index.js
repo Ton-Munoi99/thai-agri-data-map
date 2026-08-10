@@ -1,6 +1,8 @@
 const routes = [
-  { prefix: '/api/data-go', origin: 'https://data.go.th', replacement: '/api/3/action' },
-  { prefix: '/api/nasa-power', origin: 'https://power.larc.nasa.gov', replacement: '/api' },
+  { prefix: '/api/data-go', origin: 'https://data.go.th', replacement: '/api/3/action', maxAge: 3600 },
+  { prefix: '/api/catalog-oae', origin: 'https://catalog.oae.go.th', replacement: '/api/3/action', maxAge: 43200 },
+  { prefix: '/api/catalog-acfs', origin: 'https://catalog-acfs.data.go.th', replacement: '/api/3/action', maxAge: 21600 },
+  { prefix: '/api/nasa-power', origin: 'https://power.larc.nasa.gov', replacement: '/api', maxAge: 604800 },
 ]
 
 function apiTarget(url) {
@@ -9,7 +11,7 @@ function apiTarget(url) {
   const target = new URL(route.origin)
   target.pathname = `${route.replacement}${url.pathname.slice(route.prefix.length)}`
   target.search = url.search
-  return target
+  return { target, route }
 }
 
 async function withAbsoluteMetadata(response, origin) {
@@ -24,13 +26,13 @@ async function withAbsoluteMetadata(response, origin) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
-    const target = apiTarget(url)
+    const api = apiTarget(url)
 
-    if (target) {
+    if (api) {
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } })
       }
-      const response = await fetch(target, {
+      const response = await fetch(api.target, {
         method: request.method,
         headers: { Accept: 'application/json' },
       })
@@ -38,7 +40,7 @@ export default {
         status: response.status,
         headers: {
           'Content-Type': response.headers.get('Content-Type') ?? 'application/json; charset=utf-8',
-          'Cache-Control': 'public, max-age=300',
+          'Cache-Control': `public, max-age=${api.route.maxAge}, stale-while-revalidate=86400`,
           'X-Content-Type-Options': 'nosniff',
         },
       })

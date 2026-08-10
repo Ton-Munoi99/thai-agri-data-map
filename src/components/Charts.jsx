@@ -2,13 +2,13 @@ import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis
 
 const tooltipStyle = { borderRadius: 10, border: '1px solid #dce5df', boxShadow: '0 8px 24px rgba(22, 55, 35, .08)', fontSize: 12 }
 
-export function PriceChart({ data }) {
+export function PriceChart({ data, unit = 'บาท/กก.' }) {
   return <ResponsiveContainer width="100%" height={108}>
     <AreaChart data={data} margin={{ top: 8, right: 6, bottom: 0, left: 0 }}>
       <defs><linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#198754" stopOpacity={0.18}/><stop offset="100%" stopColor="#198754" stopOpacity={0}/></linearGradient></defs>
       <XAxis dataKey="period" tick={false} axisLine={false} />
       <YAxis hide domain={['dataMin - 0.1', 'dataMax + 0.1']} />
-      <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${Number(value).toFixed(2)} บาท/กก.`, 'ราคา']} />
+      <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${Number(value).toFixed(2)} ${unit}`, 'ราคา']} labelFormatter={(label) => `งวด/พื้นที่: ${label}`} />
       <Area type="monotone" dataKey="value" stroke="#177a45" strokeWidth={2.2} fill="url(#priceFill)" dot={false} activeDot={{ r: 4 }} />
     </AreaChart>
   </ResponsiveContainer>

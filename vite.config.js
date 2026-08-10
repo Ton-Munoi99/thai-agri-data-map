@@ -12,6 +12,16 @@ const proxy = {
     changeOrigin: true,
     rewrite: (path) => path.replace(/^\/api\/open-meteo/, ''),
   },
+  '/api/catalog-oae': {
+    target: 'https://catalog.oae.go.th',
+    changeOrigin: true,
+    rewrite: (path) => path.replace(/^\/api\/catalog-oae/, '/api/3/action'),
+  },
+  '/api/catalog-acfs': {
+    target: 'https://catalog-acfs.data.go.th',
+    changeOrigin: true,
+    rewrite: (path) => path.replace(/^\/api\/catalog-acfs/, '/api/3/action'),
+  },
   '/api/nasa-power': {
     target: 'https://power.larc.nasa.gov',
     changeOrigin: true,
