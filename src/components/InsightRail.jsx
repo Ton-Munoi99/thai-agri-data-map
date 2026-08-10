@@ -44,7 +44,7 @@ export default function InsightRail({ selected, price, weather, climate, climate
       {show('price') && <section className="module price-module">
         <div className="module-title"><h3>ราคาเกษตร</h3><span>{loading.price ? 'กำลังโหลด…' : `${price.source} · ${price.sourceDetail}`}</span></div>
         <div className="price-layout">
-          <div className="price-copy"><span>{price.current.product}</span><strong>{format(price.current.value, 2)} <small>{price.current.unit}</small></strong>{change !== null && price.mode !== 'snapshot' && <p className={change >= 0 ? 'up' : 'down'}>{change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)} จาก{price.mode === 'annual' ? 'ปีก่อน' : 'เดือนก่อน'}</p>}<small>{price.mode === 'annual' ? 'ปี ' : price.mode === 'monthly' ? 'งวด ' : ''}{price.current.period}</small></div>
+          <div className="price-copy"><span>{price.current.product}</span><strong>{format(price.current.value, 2)} <small>{price.current.unit}</small></strong>{change !== null && <p className={change >= 0 ? 'up' : 'down'}>{change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)} จากงวดก่อน</p>}<small>{price.current.period ? `ข้อมูล ${price.current.period}` : ''}</small></div>
           {price.series.length > 1 ? <Suspense fallback={<div className="chart-placeholder">กำลังเปิดกราฟ…</div>}><PriceChart data={price.series} unit={price.current.unit} /></Suspense> : <div className="chart-placeholder">ยังไม่มีข้อมูลพอสำหรับกราฟเปรียบเทียบ</div>}
         </div>
       </section>}

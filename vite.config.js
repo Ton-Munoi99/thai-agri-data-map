@@ -2,25 +2,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const proxy = {
-  '/api/data-go': {
-    target: 'https://data.go.th',
-    changeOrigin: true,
-    rewrite: (path) => path.replace(/^\/api\/data-go/, '/api/3/action'),
-  },
   '/api/open-meteo': {
     target: 'https://api.open-meteo.com',
     changeOrigin: true,
     rewrite: (path) => path.replace(/^\/api\/open-meteo/, ''),
   },
-  '/api/catalog-oae': {
-    target: 'https://catalog.oae.go.th',
+  '/api/oae-farmplus': {
+    target: 'https://farmgateprice.nabc.go.th',
     changeOrigin: true,
-    rewrite: (path) => path.replace(/^\/api\/catalog-oae/, '/api/3/action'),
-  },
-  '/api/catalog-acfs': {
-    target: 'https://catalog-acfs.data.go.th',
-    changeOrigin: true,
-    rewrite: (path) => path.replace(/^\/api\/catalog-acfs/, '/api/3/action'),
+    rewrite: (path) => path.replace(/^\/api\/oae-farmplus/, '/api/v1/public'),
   },
   '/api/nasa-power': {
     target: 'https://power.larc.nasa.gov',

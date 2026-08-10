@@ -50,18 +50,17 @@ export default function ThailandMap({ selected, onSelect, product, provincePrice
     })
   }
 
-  const mapTitle = product.category === 'fruit' ? `แผนที่ราคา${product.label}รายจังหวัด` : 'แผนที่ประเทศไทย'
+  const mapTitle = `แผนที่ราคา${product.label} รายจังหวัด`
   const hoveredPrice = hovered ? provincePrices.byProvince[hovered.name] : null
-  const sourceLabel = product.source === 'oae-fruit' ? 'ราคาฟาร์มประเทศ' : product.source === 'dgtfarm' ? 'ค่ากลางผู้ขาย' : 'ราคาอ้างอิงประเทศ'
 
   return (
     <section className="map-panel" aria-label="แผนที่ประเทศไทย">
       <div className="map-heading">
         <div>
           <h2>{mapTitle}</h2>
-          <p>{product.category === 'fruit' ? 'เลื่อนเมาส์เหนือจังหวัดเพื่อดูมัธยฐานราคาเสนอขาย' : 'เลือกจังหวัดเพื่อดูอากาศ ดิน และภูมิอากาศตามพิกัด'}</p>
+          <p>เลื่อนเมาส์เหนือจังหวัดเพื่อดูราคาเฉลี่ยที่เกษตรกรขายได้ ณ ไร่นา</p>
         </div>
-        <div className="map-value"><span>{sourceLabel}</span><strong>{priceLabel}</strong></div>
+        <div className="map-value"><span>สศก. (OAE) · ราคาเฉลี่ยประเทศล่าสุด</span><strong>{priceLabel}</strong></div>
       </div>
 
       <div className="map-stage">
@@ -108,14 +107,14 @@ export default function ThailandMap({ selected, onSelect, product, provincePrice
         {hovered && <div className="map-tooltip" style={{ left: hovered.x, top: hovered.y }} role="status">
           <strong>{provinceNames[hovered.name]}</strong>
           <span>{product.label}</span>
-          {hoveredPrice ? <><b>{formatPrice(hoveredPrice.value)} <small>{hoveredPrice.unit}</small></b><em>มัธยฐานจาก {hoveredPrice.count} รายการ</em></> : <><b className="no-data">ไม่มีข้อมูลรายจังหวัด</b><em>อ้างอิงระดับประเทศ {priceLabel}</em></>}
+          {hoveredPrice ? <><b>{formatPrice(hoveredPrice.value)} <small>{hoveredPrice.unit}</small></b><em>เฉลี่ยจาก {hoveredPrice.count.toLocaleString('th-TH')} รายงาน · OAE</em></> : <><b className="no-data">ไม่มีข้อมูลรายจังหวัด</b><em>OAE ยังไม่มีรายงานของจังหวัดนี้</em></>}
         </div>}
 
         <div className="map-legend">
-          <strong>{loading ? 'กำลังโหลดระดับราคา…' : 'ระดับราคาเสนอขาย'}</strong>
+          <strong>{loading ? 'กำลังโหลดระดับราคา…' : 'ระดับราคาเฉลี่ย ณ ไร่นา'}</strong>
           {scale.boundaries.length ? scale.colors.map((color, index) => <span key={color}><i className="legend-color" style={{ background: color }} />{formatPrice(scale.boundaries[index])}–{formatPrice(scale.boundaries[index + 1])}</span>) : <span><i className="legend-color no-data-color" />ไม่มีข้อมูลรายจังหวัด</span>}
           {scale.boundaries.length > 0 && <span><i className="legend-color no-data-color" />ไม่มีข้อมูล</span>}
-          <small>{provincePrices.coverage ? `${provincePrices.unit} · ${provincePrices.coverage} จังหวัด · ${provincePrices.listingCount} รายการ` : 'ชุดราคาปัจจุบันเผยแพร่ระดับประเทศ จึงไม่สร้างราคารายจังหวัดแทนข้อมูลจริง'}</small>
+          <small>{provincePrices.coverage ? `สศก. · OAE Farm Plus · ${provincePrices.unit} · ${provincePrices.coverage} จังหวัด · ${provincePrices.listingCount.toLocaleString('th-TH')} รายงาน` : 'OAE ยังไม่มีข้อมูลรายจังหวัดสำหรับสินค้านี้'}</small>
         </div>
       </div>
     </section>

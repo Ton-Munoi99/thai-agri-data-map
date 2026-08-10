@@ -1,49 +1,43 @@
-const nationalCrops = [
-  { id: 'cassava', label: 'มันสำปะหลัง', resourceId: 'd21158de-0193-4f3b-b703-fc350687106a', source: 'data-go' },
-  { id: 'coffee', label: 'กาแฟ', resourceId: '90815570-5733-4889-ae90-e88e1298e23c', source: 'data-go' },
-  { id: 'pork', label: 'สุกร', resourceId: 'd39fc22e-625b-4e89-8ca4-843fc52f9783', source: 'data-go' },
-  { id: 'chicken', label: 'ไก่เนื้อ', resourceId: '8d6439a5-ddab-4744-b530-a464499ad8f5', source: 'data-go' },
-  { id: 'egg', label: 'ไข่ไก่', resourceId: '10ebc3b6-d5ba-4025-b5f3-261b71a6458c', source: 'data-go' },
-  { id: 'beef', label: 'โคเนื้อ', resourceId: 'ecf31b91-5042-4908-b3d2-689343a421e1', source: 'data-go' },
-  { id: 'shrimp', label: 'กุ้งขาวแวนนาไม', resourceId: 'e78db1eb-672b-44d9-8500-4848446fe73f', source: 'data-go' },
-]
+const oaeCrop = (crop) => ({ ...crop, source: 'oae-farmplus' })
 
-// The seven OAE commodities have a comparable annual national farm-gate series.
-// Every fruit below also maps to real DGTFarm listings for province-level hover prices.
+const nationalCrops = [
+  { id: 'cassava', label: 'มันสำปะหลังสด · ขนาดคละ', oaeProduct: 'มันสำปะหลังสด ขนาดคละ', unit: 'กิโลกรัม' },
+  { id: 'coffee', label: 'กาแฟอาราบิก้า · กะลา', oaeProduct: 'กาแฟอาราบิก้า (กะลา)', unit: 'กิโลกรัม' },
+  { id: 'pork', label: 'สุกร · น้ำหนักเกิน 100 กก.', oaeProduct: 'สุกร น้ำหนัก เกิน 100 กก.', unit: 'กิโลกรัม' },
+  { id: 'chicken', label: 'ไก่เนื้อ · ฟาร์มประกัน', oaeProduct: 'ไก่รุ่นพันธุ์เนื้อ (ฟาร์มประกัน)', unit: 'กิโลกรัม' },
+  { id: 'egg', label: 'ไข่ไก่ · ขนาดคละ', oaeProduct: 'ไข่ไก่ ขนาดคละ', unit: 'ร้อยฟอง' },
+  { id: 'beef', label: 'โคเนื้อพื้นเมือง · ขนาดกลาง', oaeProduct: 'โคเนื้อพันธุ์พื้นเมือง ขนาดกลาง', unit: 'ตัว' },
+  { id: 'shrimp', label: 'กุ้งขาว · 50 ตัว/กก.', oaeProduct: 'กุ้งขาวแวนนาไม ขนาด 50  ตัว/กก.', unit: 'กิโลกรัม' },
+].map(oaeCrop)
+
+// One representative market specification per fruit family. Every item below
+// is currently published by OAE Farm Plus and keeps its original reporting unit.
 const fruitCrops = [
-  { id: 'fruit-durian', label: 'ทุเรียน', commodity: 'ทุเรียน', aliases: ['ทุเรียน'] },
-  { id: 'fruit-longan', label: 'ลำไย', commodity: 'ลำไย', aliases: ['ลำไย'] },
-  { id: 'fruit-longkong', label: 'ลองกอง', commodity: 'ลองกอง', aliases: ['ลองกอง'] },
-  { id: 'fruit-lychee', label: 'ลิ้นจี่', commodity: 'ลิ้นจี่', aliases: ['ลิ้นจี่'] },
-  { id: 'fruit-mangosteen', label: 'มังคุด', commodity: 'มังคุด', aliases: ['มังคุด'] },
-  { id: 'fruit-rambutan', label: 'เงาะ', commodity: 'เงาะ', aliases: ['เงาะ'] },
-  { id: 'fruit-pineapple', label: 'สับปะรด', commodity: 'สับปะรดปัตตาเวีย', aliases: ['สับปะรด'] },
-  { id: 'fruit-pomelo', label: 'ส้มโอ', aliases: ['ส้มโอ'] },
-  { id: 'fruit-melon', label: 'เมล่อน', aliases: ['เมล่อน'] },
-  { id: 'fruit-mango', label: 'มะม่วง', aliases: ['มะม่วง'] },
-  { id: 'fruit-coconut', label: 'มะพร้าว', aliases: ['มะพร้าว'] },
-  { id: 'fruit-banana', label: 'กล้วย', aliases: ['กล้วย'] },
-  { id: 'fruit-passion', label: 'เสาวรส', aliases: ['เสาวรส'] },
-  { id: 'fruit-avocado', label: 'อะโวคาโด', aliases: ['อะโวคาโด', 'อาโวคาโด'] },
-  { id: 'fruit-date', label: 'อินทผลัม', aliases: ['อินทผลัม'] },
-  { id: 'fruit-salak', label: 'สละ', aliases: ['สละ'] },
-  { id: 'fruit-guava', label: 'ฝรั่ง', aliases: ['ฝรั่ง'] },
-  { id: 'fruit-papaya', label: 'มะละกอ', aliases: ['มะละกอ'] },
-  { id: 'fruit-watermelon', label: 'แตงโม', aliases: ['แตงโม'] },
-  { id: 'fruit-cantaloupe', label: 'แคนตาลูป', aliases: ['แคนตาลูป'] },
-  { id: 'fruit-mulberry', label: 'หม่อน / มัลเบอร์รี', aliases: ['หม่อน', 'มัลเบอร์'] },
-  { id: 'fruit-orange', label: 'ส้ม', aliases: ['ส้มเขียวหวาน', 'ส้มเช้ง', 'ส้มเกลี้ยง'] },
-  { id: 'fruit-tamarind', label: 'มะขาม', aliases: ['มะขาม'] },
-  { id: 'fruit-lime', label: 'มะนาว', aliases: ['มะนาว'] },
-  { id: 'fruit-plum-mango', label: 'มะยงชิด', aliases: ['มะยงชิด'] },
-  { id: 'fruit-rose-apple', label: 'ชมพู่', aliases: ['ชมพู่'] },
-  { id: 'fruit-cape-gooseberry', label: 'เคพกูสเบอร์รี', aliases: ['เคพกูส'] },
-].map((fruit) => ({ ...fruit, category: 'fruit', source: fruit.commodity ? 'oae-fruit' : 'dgtfarm' }))
+  { id: 'fruit-durian', label: 'ทุเรียนหมอนทอง · ขนาดคละ', oaeProduct: 'ทุเรียนหมอนทอง ขนาดคละ', unit: 'กิโลกรัม' },
+  { id: 'fruit-longan', label: 'ลำไยสดอีดอ · เกรด A', oaeProduct: 'ลำไยสดทั้งช่อพันธุ์อีดอ เกรด A', unit: 'กิโลกรัม' },
+  { id: 'fruit-longkong', label: 'ลองกอง · ขนาดคละ', oaeProduct: 'ลองกอง ขนาดคละ', unit: 'กิโลกรัม' },
+  { id: 'fruit-mangosteen', label: 'มังคุด · ขนาดคละ', oaeProduct: 'มังคุด ขนาดคละ', unit: 'กิโลกรัม' },
+  { id: 'fruit-rambutan', label: 'เงาะโรงเรียน', oaeProduct: 'เงาะโรงเรียน ตะกร้า', unit: 'กิโลกรัม' },
+  { id: 'fruit-pineapple', label: 'สับปะรดปัตตาเวีย · บริโภค', oaeProduct: 'สับปะรดปัตตาเวียบริโภค', unit: 'กิโลกรัม' },
+  { id: 'fruit-pomelo', label: 'ส้มโอขาวแตงกวา', oaeProduct: 'ส้มโอขาวแตงกวา', unit: 'กิโลกรัม' },
+  { id: 'fruit-mango', label: 'มะม่วงน้ำดอกไม้', oaeProduct: 'มะม่วงน้ำดอกไม้', unit: 'กิโลกรัม' },
+  { id: 'fruit-coconut', label: 'มะพร้าวน้ำหอม · ขนาดคละ', oaeProduct: 'มะพร้าวน้ำหอม ขนาดคละ', unit: 'ร้อยผล' },
+  { id: 'fruit-banana', label: 'กล้วยน้ำว้า · ขนาดคละ', oaeProduct: 'กล้วยน้ำว้า ขนาดคละ', unit: 'หวี' },
+  { id: 'fruit-salak', label: 'สละ', oaeProduct: 'สละ', unit: 'กิโลกรัม' },
+  { id: 'fruit-guava', label: 'ฝรั่งแป้นสีทอง', oaeProduct: 'ฝรั่งพันธุ์แป้นสีทอง', unit: 'กิโลกรัม' },
+  { id: 'fruit-papaya', label: 'มะละกอฮอลแลนด์ · ขนาดคละ', oaeProduct: 'มะละกอฮอลแลนด์ ขนาดคละ', unit: 'กิโลกรัม' },
+  { id: 'fruit-watermelon', label: 'แตงโมจินตหรา', oaeProduct: 'แตงโม พันธุ์จินตหรา', unit: 'กิโลกรัม' },
+  { id: 'fruit-orange', label: 'ส้มเขียวหวานสายน้ำผึ้ง · กลาง', oaeProduct: 'ส้มเขียวหวานสายน้ำผึ้ง ขนาดกลาง', unit: 'กิโลกรัม' },
+  { id: 'fruit-lime', label: 'มะนาวแป้น · ขนาดคละ', oaeProduct: 'มะนาวแป้น ขนาดคละ', unit: 'ร้อยผล' },
+  { id: 'fruit-rose-apple', label: 'ชมพู่ทับทิมจันทร์', oaeProduct: 'ชมพู่ทับทิมจันทร์', unit: 'กิโลกรัม' },
+  { id: 'fruit-santol', label: 'กระท้อนเปรี้ยว', oaeProduct: 'กระท้อนเปรี้ยว', unit: 'กิโลกรัม' },
+  { id: 'fruit-jackfruit', label: 'ขนุนทองประเสริฐ', oaeProduct: 'ขนุนพันธุ์ทองประเสริฐ', unit: 'กิโลกรัม' },
+  { id: 'fruit-grape', label: 'องุ่นคาร์ดินัล', oaeProduct: 'องุ่น คาร์ดินัล', unit: 'กิโลกรัม' },
+].map((fruit) => oaeCrop({ ...fruit, category: 'fruit' }))
 
 export const cropGroups = [
-  { label: 'ผลไม้ · ราคาฟาร์มระดับประเทศ', items: fruitCrops.filter((fruit) => fruit.commodity) },
-  { label: 'ผลไม้อื่น · ราคาเสนอขายมาตรฐาน', items: fruitCrops.filter((fruit) => !fruit.commodity) },
-  { label: 'สินค้าเกษตรอื่น · ระดับประเทศ', items: nationalCrops },
+  { label: 'ผลไม้ · OAE Farm Plus', items: fruitCrops },
+  { label: 'สินค้าเกษตรอื่น · OAE Farm Plus', items: nationalCrops },
 ]
 
 export const crops = cropGroups.flatMap((group) => group.items)

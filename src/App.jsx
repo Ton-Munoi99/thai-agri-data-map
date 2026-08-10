@@ -36,7 +36,7 @@ function App() {
 
   useEffect(() => {
     let active = true
-    const source = currentCrop.source === 'oae-fruit' ? 'สศก.' : currentCrop.source === 'dgtfarm' ? 'DGTFarm' : 'data.go.th'
+    const source = 'OAE Farm Plus · แนวโน้ม'
     markLoading('price', true)
     setPrice(unavailablePrice(currentCrop))
     fetchPrice(currentCrop)
@@ -49,14 +49,10 @@ function App() {
   useEffect(() => {
     let active = true
     setProvincePrices(fallbacks.provincePrices)
-    if (currentCrop.category !== 'fruit') {
-      markLoading('map', false)
-      return () => { active = false }
-    }
     markLoading('map', true)
     fetchProvincePrices(currentCrop)
-      .then((value) => { if (active) { setProvincePrices(value); markSource('DGTFarm', false) } })
-      .catch(() => { if (active) markSource('DGTFarm', true) })
+      .then((value) => { if (active) { setProvincePrices(value); markSource('OAE Farm Plus · รายจังหวัด', false) } })
+      .catch(() => { if (active) markSource('OAE Farm Plus · รายจังหวัด', true) })
       .finally(() => { if (active) markLoading('map', false) })
     return () => { active = false }
   }, [currentCrop, markLoading, markSource, refreshKey])
@@ -97,8 +93,7 @@ function App() {
     setRefreshKey((value) => value + 1)
   }
 
-  const currentPriceSource = currentCrop.source === 'oae-fruit' ? 'สศก.' : currentCrop.source === 'dgtfarm' ? 'DGTFarm' : 'data.go.th'
-  const activeSources = new Set(['Open‑Meteo', 'NASA POWER', currentPriceSource, ...(currentCrop.category === 'fruit' ? ['DGTFarm'] : [])])
+  const activeSources = new Set(['Open‑Meteo', 'NASA POWER', 'OAE Farm Plus · แนวโน้ม', 'OAE Farm Plus · รายจังหวัด'])
   const staleSources = Object.entries(sourceFailures).filter(([source, failed]) => failed && activeSources.has(source)).map(([source]) => source)
   const isLoading = Object.values(loading).some(Boolean)
 
@@ -110,7 +105,7 @@ function App() {
       </header>
 
       <div className="controls" id="top">
-        <label><span><Leaf size={15}/>สินค้าเกษตร · ผลไม้ 27 ชนิด</span><select value={cropId} onChange={(event) => setCropId(event.target.value)}>{cropGroups.map((group) => <optgroup key={group.label} label={group.label}>{group.items.map((crop) => <option key={crop.id} value={crop.id}>{crop.label}</option>)}</optgroup>)}</select><ChevronDown /></label>
+        <label><span><Leaf size={15}/>สินค้าเกษตร · ผลไม้ OAE {cropGroups[0].items.length} ชนิด</span><select value={cropId} onChange={(event) => setCropId(event.target.value)}>{cropGroups.map((group) => <optgroup key={group.label} label={group.label}>{group.items.map((crop) => <option key={crop.id} value={crop.id}>{crop.label}</option>)}</optgroup>)}</select><ChevronDown /></label>
         <label><span><MapPin size={15}/>จังหวัด</span><select value={selected.name} onChange={(event) => selectFromDropdown(event.target.value)}>{Object.entries(provinceNames).sort((a, b) => a[1].localeCompare(b[1], 'th')).map(([name, label]) => <option key={name} value={name}>{label}</option>)}</select><ChevronDown /></label>
         <label className="period-control"><span><CalendarDays size={15}/>ช่วงข้อมูลภูมิอากาศ</span><select value={climatePeriodId} onChange={(event) => setClimatePeriodId(event.target.value)}>{climatePeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select><ChevronDown /></label>
       </div>
@@ -122,9 +117,7 @@ function App() {
 
       <footer className="source-footer">
         <strong>แหล่งข้อมูล</strong>
-        <a href="https://catalog.oae.go.th/dataset/tropical-fruits" target="_blank" rel="noreferrer"><i className={staleSources.includes('สศก.') ? 'warn' : ''}/>สศก. <span>ราคาฟาร์มผลไม้ 7 ชนิด</span></a>
-        <a href="https://catalog-acfs.data.go.th/dataset/dgtfarm" target="_blank" rel="noreferrer"><i className={staleSources.includes('DGTFarm') ? 'warn' : ''}/>DGTFarm <span>ราคาเสนอขายรายจังหวัด</span></a>
-        <a href="https://data.go.th" target="_blank" rel="noreferrer"><i className={staleSources.includes('data.go.th') ? 'warn' : ''}/>data.go.th <span>ราคาสินค้าอื่นระดับประเทศ</span></a>
+        <a href="https://farmgateprice.nabc.go.th/" target="_blank" rel="noreferrer"><i className={staleSources.some((source) => source.startsWith('OAE Farm Plus')) ? 'warn' : ''}/>สศก. · OAE Farm Plus <span>ราคาที่เกษตรกรขายได้ ณ ไร่นา · รายจังหวัด</span></a>
         <a href="https://open-meteo.com" target="_blank" rel="noreferrer"><i className={staleSources.includes('Open‑Meteo') ? 'warn' : ''}/>Open‑Meteo <span>อากาศและความชื้นดิน</span></a>
         <a href="https://power.larc.nasa.gov" target="_blank" rel="noreferrer"><i className={staleSources.includes('NASA POWER') ? 'warn' : ''}/>NASA POWER <span>ภูมิอากาศย้อนหลัง</span></a>
       </footer>

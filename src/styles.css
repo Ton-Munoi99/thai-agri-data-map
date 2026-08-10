@@ -125,7 +125,7 @@ button:focus-visible, select:focus-visible, .province:focus-visible { outline: 3
 .loading-wash { position: absolute; inset: 52px 0 0; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--green-900); background: rgba(255,255,255,.65); backdrop-filter: blur(1px); font-size: 11px; }
 .spinner { width: 18px; height: 18px; border: 2px solid #b9d8c4; border-top-color: var(--green-700); border-radius: 50%; animation: spin .75s linear infinite; }
 
-.source-footer { display: grid; grid-template-columns: auto repeat(5, minmax(110px, 1fr)); align-items: center; gap: 15px; padding: 10px 24px; background: #fff; border-top: 1px solid var(--line); }
+.source-footer { display: grid; grid-template-columns: auto repeat(3, minmax(150px, 1fr)); align-items: center; gap: 15px; padding: 10px 24px; background: #fff; border-top: 1px solid var(--line); }
 .source-footer > strong { padding-right: 20px; border-right: 1px solid var(--line); font-size: 12px; }
 .source-footer a { display: grid; grid-template-columns: 10px auto; column-gap: 8px; color: var(--slate-700); text-decoration: none; font-size: 10px; }
 .source-footer a i { width: 9px; height: 9px; margin-top: 2px; border-radius: 50%; background: #15934c; }.source-footer a i.warn { background: #e89521; }

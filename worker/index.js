@@ -1,7 +1,5 @@
 const routes = [
-  { prefix: '/api/data-go', origin: 'https://data.go.th', replacement: '/api/3/action', maxAge: 3600 },
-  { prefix: '/api/catalog-oae', origin: 'https://catalog.oae.go.th', replacement: '/api/3/action', maxAge: 43200 },
-  { prefix: '/api/catalog-acfs', origin: 'https://catalog-acfs.data.go.th', replacement: '/api/3/action', maxAge: 21600 },
+  { prefix: '/api/oae-farmplus', origin: 'https://farmgateprice.nabc.go.th', replacement: '/api/v1/public', maxAge: 300 },
   { prefix: '/api/nasa-power', origin: 'https://power.larc.nasa.gov', replacement: '/api', maxAge: 604800 },
 ]
 

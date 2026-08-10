@@ -1,7 +1,5 @@
-import { fallbackClimate, fallbackPrice, fallbackWeather, monthLabels, nasaMonthKeys, provinceNames } from './data'
+import { fallbackClimate, fallbackWeather, monthLabels, nasaMonthKeys, provinceNames } from './data'
 
-const OAE_FRUIT_RESOURCE = 'd1374b32-895c-48b0-bd29-7917b217c809'
-const DGTFARM_RESOURCE = 'a91d0f7a-7208-4a05-8fdf-e41ebce83573'
 const responseCache = new Map()
 const provinceByThaiName = Object.fromEntries(Object.entries(provinceNames).map(([name, label]) => [label, name]))
 
@@ -33,122 +31,70 @@ export function clearApiCache() {
   responseCache.clear()
 }
 
-const median = (values) => {
-  const ordered = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(ordered.length / 2)
-  return ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2
+const unitLabel = (unit) => {
+  if (unit === 'กิโลกรัม') return 'บาท/กก.'
+  if (unit === 'ร้อยผล' || unit === 'ร้อยฟอง') return `บาท/100 ${unit.slice(3)}`
+  return `บาท/${unit}`
 }
 
-const unitLabel = (unit) => unit === 'กิโลกรัม' ? 'บาท/กก.' : `บาท/${unit}`
+const thaiDate = (date) => new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date))
 
-async function fetchDataGoPrice(product) {
-  const url = `/api/data-go/datastore_search?resource_id=${product.resourceId}&limit=200&sort=_id%20asc`
-  const json = await fetchJsonCached(url)
-  const records = json?.result?.records
-  if (!json.success || !records?.length) throw new Error('ไม่พบข้อมูลราคา')
-  const series = records
-    .map((row) => ({
-      period: `${row.year ?? row['ปี']}/${row.month ?? row['เดือน']}`,
-      value: Number(row.value ?? row.Value ?? row.values ?? row['ค่า'] ?? row['ค่าข้อมูล']),
-      product: row.product_name ?? row.commod ?? row['รายการ'] ?? product.label,
-      unit: row.unit ?? row['หน่วย'] ?? 'บาท/กก.',
-      year: Number(row.year ?? row['ปี']), month: Number(row.month ?? row['เดือน']) || 0,
-    }))
-    .filter((row) => Number.isFinite(row.value))
-    .sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month))
-  if (!series.length) throw new Error('ไม่พบค่าราคาในชุดข้อมูล')
-  return {
-    series: series.slice(-18), current: series.at(-1), total: json.result.total,
-    mode: 'monthly', source: 'data.go.th', sourceDetail: 'ราคาเกษตรระดับประเทศ',
-  }
+async function fetchFarmPlusYear() {
+  const json = await fetchJsonCached('/api/oae-farmplus/years', 6 * 60 * 60 * 1000)
+  const years = (json?.data ?? []).map(Number).filter(Number.isFinite)
+  if (!json?.success || !years.length) throw new Error('ไม่พบปีข้อมูล OAE Farm Plus')
+  return Math.max(...years)
 }
 
-async function fetchOaeFruitPrice(product) {
-  const url = `/api/catalog-oae/datastore_search?resource_id=${OAE_FRUIT_RESOURCE}&limit=500`
-  const json = await fetchJsonCached(url, 12 * 60 * 60 * 1000)
-  const series = (json?.result?.records ?? [])
-    .filter((row) => row.commod === product.commodity && row.attribute === 'ราคาที่เกษตรกรขายได้')
-    .map((row) => ({
-      period: String(row.year_th), year: Number(row.year_th), value: Number(row.value),
-      product: `${product.label} (ราคาที่เกษตรกรขายได้)`, unit: row.unit || 'บาท/กก.',
-    }))
-    .filter((row) => Number.isFinite(row.year) && Number.isFinite(row.value))
-    .sort((a, b) => a.year - b.year)
-  if (!series.length) throw new Error(`ไม่พบราคาของ${product.label}`)
-  return {
-    series, current: series.at(-1), total: series.length,
-    mode: 'annual', source: 'สศก.', sourceDetail: 'ราคาฟาร์มระดับประเทศ รายปี',
-  }
-}
-
-async function fetchDgtfarmRows() {
-  const url = `/api/catalog-acfs/datastore_search?resource_id=${DGTFARM_RESOURCE}&limit=1000`
-  const json = await fetchJsonCached(url, 6 * 60 * 60 * 1000)
-  if (!json?.success || !json?.result?.records?.length) throw new Error('ไม่พบข้อมูล DGTFarm')
-  return json.result.records
-}
-
-async function marketSnapshot(product) {
-  const allRows = await fetchDgtfarmRows()
-  const matching = allRows.filter((row) => {
-    const type = String(row.product_type ?? '')
-    return row.product_category === 'ผลไม้' && product.aliases.some((alias) => type.includes(alias)) && Number(row.price) > 0
-  })
-  if (!matching.length) throw new Error(`ไม่พบราคาเสนอขายของ${product.label}`)
-
-  const unitCounts = matching.reduce((counts, row) => {
-    const unit = String(row.unit ?? '').trim()
-    if (unit) counts[unit] = (counts[unit] ?? 0) + 1
-    return counts
-  }, {})
-  const selectedUnit = unitCounts['กิโลกรัม'] ? 'กิโลกรัม' : Object.entries(unitCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
-  const comparableRows = matching.filter((row) => String(row.unit ?? '').trim() === selectedUnit)
-  const grouped = comparableRows.reduce((groups, row) => {
-    const provinceLabel = String(row.province ?? '').trim()
-    const provinceName = provinceByThaiName[provinceLabel]
-    if (!provinceName) return groups
-    if (!groups[provinceName]) groups[provinceName] = []
-    groups[provinceName].push(Number(row.price))
-    return groups
-  }, {})
-  const byProvince = Object.fromEntries(Object.entries(grouped).map(([name, values]) => [name, {
-    value: median(values), count: values.length, unit: unitLabel(selectedUnit),
-  }]))
-  const values = comparableRows.map((row) => Number(row.price)).filter(Number.isFinite)
-  return {
-    byProvince, unit: unitLabel(selectedUnit), listingCount: values.length,
-    coverage: Object.keys(byProvince).length, median: median(values),
-  }
-}
-
-async function fetchDgtfarmPrice(product) {
-  const snapshot = await marketSnapshot(product)
-  const series = Object.entries(snapshot.byProvince)
-    .map(([name, item]) => ({ period: provinceNames[name], value: item.value }))
-    .sort((a, b) => a.value - b.value)
-  return {
-    series,
-    current: {
-      product: `${product.label} (มัธยฐานราคาเสนอขาย)`, value: snapshot.median,
-      unit: snapshot.unit, period: `${snapshot.coverage} จังหวัด · ${snapshot.listingCount} รายการ`,
-    },
-    total: snapshot.listingCount, mode: 'snapshot', source: 'DGTFarm',
-    sourceDetail: 'ราคาเสนอขายจากผู้จำหน่ายมาตรฐาน',
-  }
+function farmPlusParams(product, year) {
+  return new URLSearchParams({ product: product.oaeProduct, year: String(year) })
 }
 
 export async function fetchPrice(product) {
-  if (product.source === 'oae-fruit') return fetchOaeFruitPrice(product)
-  if (product.source === 'dgtfarm') return fetchDgtfarmPrice(product)
-  return fetchDataGoPrice(product)
+  const year = await fetchFarmPlusYear()
+  const json = await fetchJsonCached(`/api/oae-farmplus/price-trends?${farmPlusParams(product, year)}`, 5 * 60 * 1000)
+  const series = (json?.data ?? [])
+    .map((row) => ({
+      date: row.date,
+      period: thaiDate(row.date),
+      value: Number(row.avg_price),
+      minimum: Number(row.min_price),
+      maximum: Number(row.max_price),
+      count: Number(row.report_count) || 0,
+    }))
+    .filter((row) => row.date && Number.isFinite(row.value))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+  if (!json?.success || !series.length) throw new Error(`ไม่พบราคาของ${product.label}`)
+  const latest = series.at(-1)
+  return {
+    series: series.slice(-18),
+    current: { ...latest, product: product.oaeProduct, unit: unitLabel(product.unit) },
+    total: series.reduce((sum, row) => sum + row.count, 0),
+    mode: 'weekly', source: 'OAE Farm Plus', sourceDetail: 'สศก. · ราคาที่เกษตรกรขายได้ ณ ไร่นา',
+  }
 }
 
 export async function fetchProvincePrices(product) {
-  if (product.category !== 'fruit') {
-    return { byProvince: {}, unit: '', listingCount: 0, coverage: 0, source: null }
+  const year = await fetchFarmPlusYear()
+  const json = await fetchJsonCached(`/api/oae-farmplus/price-by-province?${farmPlusParams(product, year)}`, 5 * 60 * 1000)
+  if (!json?.success) throw new Error('ไม่พบข้อมูลราคารายจังหวัด')
+  const priceUnit = unitLabel(product.unit)
+  const byProvince = Object.fromEntries((json.data ?? []).flatMap((row) => {
+    const name = provinceByThaiName[String(row.province_name ?? '').trim()]
+    const value = Number(row.avg_price)
+    if (!name || !Number.isFinite(value)) return []
+    return [[name, {
+      value,
+      count: Number(row.report_count) || 0,
+      unit: priceUnit,
+      date: row.create_at,
+    }]]
+  }))
+  const listingCount = Object.values(byProvince).reduce((sum, item) => sum + item.count, 0)
+  return {
+    byProvince, unit: priceUnit, listingCount, coverage: Object.keys(byProvince).length,
+    source: 'OAE Farm Plus', sourceDetail: 'ราคาเฉลี่ยที่เกษตรกรขายได้รายจังหวัด',
   }
-  const snapshot = await marketSnapshot(product)
-  return { ...snapshot, source: 'DGTFarm', sourceDetail: 'มัธยฐานราคาเสนอขายต่อจังหวัด' }
 }
 
 export async function fetchWeather(lat, lon) {
@@ -182,14 +128,13 @@ export async function fetchClimate(lat, lon, start, end) {
 
 export const unavailablePrice = (product) => ({
   series: [], current: { product: product.label, value: null, unit: '', period: 'ไม่พบข้อมูล' },
-  mode: 'unavailable', source: product.source === 'dgtfarm' ? 'DGTFarm' : 'data.go.th', sourceDetail: 'ไม่พบข้อมูลล่าสุด',
+  mode: 'unavailable', source: 'OAE Farm Plus', sourceDetail: 'ไม่พบข้อมูลล่าสุด',
 })
 
 export const fallbacks = {
   price: {
-    series: fallbackPrice,
-    current: { ...fallbackPrice.at(-1), product: 'มันสำปะหลังสด คละ', unit: 'บาท/กก.' },
-    mode: 'monthly', source: 'data.go.th', sourceDetail: 'ราคาเกษตรระดับประเทศ',
+    series: [], current: { product: 'กำลังโหลดราคา OAE', value: null, unit: '', period: '' },
+    mode: 'unavailable', source: 'OAE Farm Plus', sourceDetail: 'กำลังเชื่อมต่อ',
   },
   provincePrices: { byProvince: {}, unit: '', listingCount: 0, coverage: 0, source: null },
   weather: fallbackWeather,
