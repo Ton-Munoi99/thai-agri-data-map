@@ -1,6 +1,5 @@
 const routes = [
   { prefix: '/api/data-go', origin: 'https://data.go.th', replacement: '/api/3/action' },
-  { prefix: '/api/open-meteo', origin: 'https://api.open-meteo.com', replacement: '' },
   { prefix: '/api/nasa-power', origin: 'https://power.larc.nasa.gov', replacement: '/api' },
 ]
 

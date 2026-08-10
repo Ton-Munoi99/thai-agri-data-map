@@ -32,7 +32,7 @@ export async function fetchWeather(lat, lon, signal) {
     hourly: 'soil_moisture_0_to_1cm,et0_fao_evapotranspiration',
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration',
   })
-  const json = await fetchJson(`/api/open-meteo/v1/forecast?${params}`, signal)
+  const json = await fetchJson(`https://api.open-meteo.com/v1/forecast?${params}`, signal)
   const hourIndex = Math.max(0, json.hourly.time.findIndex((time) => time >= json.current.time))
   return {
     temperature: json.current.temperature_2m, apparent: json.current.apparent_temperature,
